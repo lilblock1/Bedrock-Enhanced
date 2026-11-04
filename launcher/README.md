@@ -1,4 +1,4 @@
-# Bedrock Enhanced Launcher — v0.3.0 experimental
+# Bedrock Enhanced Launcher — v0.3.1 experimental
 
 This is a **separate Android launcher** project with an original Bedrock Enhanced entry screen and a native Minecraft loading foundation **derived from LeviLaunchroid** (Copyright LeviMC contributors, Apache 2.0). This is neither the old overlay app nor a claim that the underlying loader was written from scratch.
 
@@ -46,3 +46,12 @@ A licensed Minecraft Bedrock installation from Google Play is required. No copyr
 ## Existing overlay project
 
 The original Bedrock Enhanced external overlay under root `app/` is retained and has its own `android.yml` workflow. The new derived launcher is built separately as a second APK with a different package name.
+
+## v0.3.1 startup and update changes
+
+- Launcher "Play modded Minecraft" now opens the integrated runtime and sends a one-shot auto-launch request. It follows the upstream installed-version manager, selected instance, game-file preparation, and Google Play ownership checks.
+- If the game version is unavailable, the runtime offers **Import APK / APKS** or **Choose version** instead of a silent no-op.
+- Launcher app updates check GitHub Releases at **lilblock1/Bedrock-Enhanced** rather than LeviMC's release feed. Only an asset named `BedrockEnhanced-Launcher-*.apk` will be considered, and its embedded package identity must match `com.bedrockenhanced.launcher`.
+- The native runtime's preloader signature-rule updates are **not** the app auto-update channel; upstream compatibility rule data remains managed upstream until we implement and validate our own mirror.
+- GitHub CI debug builds are not stable signed releases. Android will reject app updates signed with different keys. For installable in-place release updates, configure a protected signing keystore and the release workflow described in the source. Do not publish the private key.
+- This is a source/build pipeline milestone; launching the Minecraft runtime on a physical Android device still requires a device test. No gameplay hacks are implemented yet.
