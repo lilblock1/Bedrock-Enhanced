@@ -1,27 +1,40 @@
-# Bedrock Enhanced — Android Overlay v0.1.1
+# Bedrock Enhanced v0.2.0 — external Android overlay
 
-Standalone Android overlay companion for Minecraft Bedrock, targeted at Android 8+ and Samsung Galaxy S25+. This is not a modified Minecraft APK and does not inject code into Minecraft.
+**Standalone Android companion, without any server add-on or modified Minecraft APK.**
 
-## Working foundation (source implementation)
-- Overlay permission request, foreground notification and stop control
-- Draggable BE floating bubble and expandable in-game panel
-- Optional, adjustable, touch-pass-through crosshair (size and colors)
-- Own server / Realms UI profile selector and saved preferences
-- Battery, display refresh rate and system thermal-status diagnostics
-- Launch Minecraft button
+This version has been developed for the Samsung Galaxy S25+ (Android 16) with an external floating menu. It can appear over Minecraft regardless of which server you join, subject to Android overlay permissions and full-screen overlay restrictions.
 
-## Not yet implemented
-Fly, speed, jump, no-fall, fullbright, freecam, ore highlighting, zoom, game FPS, time/weather control, waypoints, auto-tool, particles, fog, compact HUD, performance textures and performance profiles require compatible game-side resources, supported commands or authorized integrations. The menu keeps these items disabled rather than falsely claiming they work. The default planned speed/jump multipliers are 1.0x.
+## Available now in the APK
+
+- Draggable bubble and compact tabbed overlay UI
+- Crosshair overlay: enable/disable, cross/dot/ring styles, adjustable size and three colors
+- Saved on-device crosshair and menu settings
+- Offline manual waypoints: name, XYZ, save, delete and copy teleport command (does not read the game location)
+- Operator-command clipboard tool: night vision, slow falling, creative/survival/spectator gamemode, coordinate rule, day/night, rain/clear, speed/jump potion effects
+- Speed and jump default to **1.0x** (no command until you choose a potion effect level)
+- Android diagnostics: battery percentage, display refresh rate, Android thermal status; **not actual Minecraft FPS**
+- Profile selector for friends' servers versus Realms
+- Minecraft launcher, foreground notification and stop control
+
+## What it does NOT do
+
+This APK cannot automatically modify Minecraft's player movement, world state, renderer, inventory or camera, or bypass a server's rules. Flight, true freecam, no-fall, X-ray/ore highlighting, native fullbright, FOV zoom, game FPS and rendering performance modifications require game-side integration and are **not** implemented. No buttons pretending to toggle those effects are active.
+
+Clipboard command shortcuts require the Minecraft player to have the necessary operator permissions. They are **not** dispatched by the app. Do not rely on operator commands being accepted by Realms or servers unless the owner grants that permission. Creative and spectator gamemodes change how you play and can affect achievements or world behavior.
+
+## Install / test
+
+1. Download the APK from the latest successful GitHub Actions run under artifact `BedrockEnhanced-debug-apk`.
+2. Install this **separate companion app**.
+3. Grant *Display over other apps* when requested.
+4. Start the overlay, then launch Minecraft.
+5. Tap the BE bubble; use Visuals / Commands / Waypoints / Device tabs.
+6. Open Minecraft chat and manually paste copied commands on servers where you are an operator.
+
+Builds are debug-signed and may not update each other if GitHub CI rotates keys. Do not uninstall the companion app without exporting or recording your manual waypoints. Minecraft worlds are not modified.
 
 ## Build
-Push to main or run the `Build Bedrock Enhanced APK` GitHub Actions workflow. Open the successful run and download the `BedrockEnhanced-debug-apk` artifact. It contains the Android debug APK, signed by GitHub's temporary debug key; changing runners may change the signing key and require uninstall/reinstall of this companion app.
 
-## Test
-1. Install the debug APK and allow Display over other apps.
-2. Start overlay and launch Minecraft.
-3. Drag the floating BE button and tap it to open the panel.
-4. Enable crosshair; adjust its size and color.
-5. Verify Minecraft remains touch-responsive.
-6. Stop overlay from companion app.
+Android SDK 35 / Java 17 / Gradle 8.9. GitHub Actions builds `gradle :app:assembleDebug` on push. The APK is uploaded as `BedrockEnhanced-debug-apk`.
 
-No physical-device test has yet been performed. This project contains no copyrighted Minecraft code or game files.
+The source compiles in GitHub CI; a physical Samsung device runtime test is still needed.
