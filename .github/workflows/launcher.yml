@@ -144,7 +144,7 @@ jobs:
                   path = "lib/arm64-v8a/" + lib
                   blob = z.read(path)
                   assert len(blob) > 100, path + " is empty"
-                  assert blob[:4] == b"\\x7fELF", path + " is not ELF"
+                  assert blob[:4] == b"\x7fELF", path + " is not ELF"
                   assert blob[4] == 2 and blob[5] == 1, path + " is not little-endian ELF64"
                   assert int.from_bytes(blob[18:20], "little") == 183, path + " is not AArch64"
                   print("Verified ARM64:", lib, len(blob), "bytes")
