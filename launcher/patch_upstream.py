@@ -175,6 +175,35 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
         'Log.w(TAG, "No Bedrock Enhanced release available (HTTP " + response.code() + ")"); return; }\n'
         '                    ' + response_marker,
     )
+    # Manual update button should always give visible feedback. The automatic
+    # check on application startup remains silent to avoid interrupting games.
+    empty_release_response = (
+        'if (!response.isSuccessful() || response.body() == null) { '
+        'Log.w(TAG, "No Bedrock Enhanced release available (HTTP " + response.code() + ")"); return; }'
+    )
+    if updater.count(empty_release_response) != 2:
+        raise SystemExit("Missing GitHub release response guards")
+    updater = updater.replace(
+        empty_release_response,
+        'if (!response.isSuccessful() || response.body() == null) { '
+        'Log.w(TAG, "No release available (HTTP " + response.code() + ")"); '
+        'activity.runOnUiThread(() -> Toast.makeText(activity, '
+        '"No Bedrock Enhanced launcher release has been published yet", '
+        'Toast.LENGTH_LONG).show()); return; }',
+        1,
+    )
+    manual_network_failure = 'Log.e(TAG, "Request failed: " + e.getMessage());'
+    if updater.count(manual_network_failure) != 2:
+        raise SystemExit("Unexpected upstream network failure handling")
+    updater = updater.replace(
+        manual_network_failure,
+        manual_network_failure
+        + '\\n                activity.runOnUiThread(() -> '
+          'Toast.makeText(activity, "Unable to check for updates: " + e.getMessage(), '
+          'Toast.LENGTH_LONG).show());',
+        1,
+    )
+
     # Check that a downloaded package is actually Bedrock Enhanced before
     # handing it to Android Package Installer, not the unrelated overlay.
     install_marker = 'private void installApk(File apkFile) {'
