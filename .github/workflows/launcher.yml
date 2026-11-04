@@ -65,13 +65,16 @@ jobs:
 
       - name: Apply Bedrock Enhanced changes with full attribution
         run: |
-          python3 -m py_compile launcher/patch_upstream.py
+          python3 -m py_compile launcher/patch_upstream.py launcher/patch_runtime_fixes.py
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             export BE_VERSION="${GITHUB_REF_NAME#v}"
           fi
           python3 launcher/patch_upstream.py upstream
           python3 launcher/patch_runtime_fixes.py upstream
-          grep -q 'restoreLauncherCppRuntime(outputDir)' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          grep -q 'restoreBundledDependencies(outputDir)' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          grep -q 'verifyGameNativeDependencies(outputDir)' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          grep -q 'normalizedName == "HttpClient.Android"' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          ! grep -q 'val fallbackAbis = listOf' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
           grep -q 'Repair Minecraft native library cache' upstream/app/src/main/java/org/levimc/launcher/ui/activities/BedrockEnhancedHomeActivity.java
           grep -q 'applicationId "com.bedrockenhanced.launcher"' upstream/app/build.gradle
           grep -q 'BedrockEnhancedHomeActivity' upstream/app/src/main/AndroidManifest.xml
@@ -123,9 +126,30 @@ jobs:
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F 'com.bedrockenhanced.launcher'
           unzip -l "$APK" | grep -F 'lib/arm64-v8a/libc++_shared.so'
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libHttpClient.Android.so'
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libPlayFabMultiplayer.so'
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libmaesdk.so'
           unzip -l "$APK" | grep -F 'lib/arm64-v8a/libpreloader.so'
           unzip -l "$APK" | grep -F 'lib/arm64-v8a/libgxcore.so'
           unzip -l "$APK" | grep -F 'assets/LEVI_LAUNCHROID_APACHE_2_LICENSE.txt'
+          # Confirm the game dependency libraries are valid little-endian ELF64
+          # for the same ARM64 architecture as the target Samsung device.
+          python3 - "$APK" <<'PY'
+          import sys, zipfile
+          apk = sys.argv[1]
+          libs = ("libc++_shared.so", "libHttpClient.Android.so", "libPlayFabMultiplayer.so",
+                  "libmaesdk.so", "libpreloader.so", "libgxcore.so")
+          with zipfile.ZipFile(apk) as z:
+              for lib in libs:
+                  path = "lib/arm64-v8a/" + lib
+                  blob = z.read(path)
+                  assert len(blob) > 100, path + " is empty"
+                  assert blob[:4] == b"\\x7fELF", path + " is not ELF"
+                  assert blob[4] == 2 and blob[5] == 1, path + " is not little-endian ELF64"
+                  assert int.from_bytes(blob[18:20], "little") == 183, path + " is not AArch64"
+                  print("Verified ARM64:", lib, len(blob), "bytes")
+          PY
+
 
       - name: Upload installable debug APK
         if: success()
