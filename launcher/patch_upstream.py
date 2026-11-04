@@ -231,9 +231,27 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
         'intent.setClassName(getPackageName(), "org.levimc.launcher.ui.activities.MainActivity");\n'
         '            if (play) intent.putExtra("BE_AUTO_LAUNCH", true);',
     )
+    # Reuse upstream SplashActivity's native compatibility refresh and
+    # preflight storage warm-up; pass the Play intent through the splash.
+    home = home.replace(
+        'intent.setClassName(getPackageName(), "org.levimc.launcher.ui.activities.MainActivity");',
+        'intent.setClassName(getPackageName(), "org.levimc.launcher.ui.activities.SplashActivity");',
+    )
     if 'BE_AUTO_LAUNCH' not in home or 'this::openRuntime' in home:
         raise SystemExit("Home launcher direct-play patch failed")
     home_target.write_text(home, encoding="utf-8")
+    splash_path = app / "src/main/java/org/levimc/launcher/ui/activities/SplashActivity.java"
+    splash = splash_path.read_text(encoding="utf-8")
+    splash_marker = "Intent intent = new Intent(SplashActivity.this, MainActivity.class);"
+    if splash.count(splash_marker) != 1:
+        raise SystemExit("Upstream splash navigation changed")
+    splash = splash.replace(
+        splash_marker,
+        splash_marker + '\\n                if (getIntent().getBooleanExtra("BE_AUTO_LAUNCH", false)) '
+                        'intent.putExtra("BE_AUTO_LAUNCH", true);',
+        1,
+    )
+    splash_path.write_text(splash, encoding="utf-8")
 
     # Own product branding, without deleting upstream copyright/credits.
     strings_path = app / "src/main/res/values/strings.xml"
