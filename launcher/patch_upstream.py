@@ -85,12 +85,17 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
         manifest,
         count=1,
     )
-    # Default to a neutral system icon instead of upstream LeviMC branding.
+    # Use our original application-local icon rather than upstream branding
+    # or an Android framework drawable that may not resolve during packaging.
+    icon_src = project_root / "launcher/res/drawable/bedrock_enhanced_icon.xml"
+    icon_dst = app / "src/main/res/drawable/bedrock_enhanced_icon.xml"
+    icon_dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(icon_src, icon_dst)
     if 'android:icon="@mipmap/ic_launcher"' not in manifest:
         raise SystemExit("Cannot find upstream app icon declaration")
     manifest = manifest.replace(
         'android:icon="@mipmap/ic_launcher"',
-        'android:icon="@android:drawable/ic_menu_manage"',
+        'android:icon="@drawable/bedrock_enhanced_icon"',
         1,
     )
     manifest_path.write_text(manifest, encoding="utf-8")
