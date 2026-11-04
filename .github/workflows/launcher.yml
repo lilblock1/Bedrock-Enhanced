@@ -1,0 +1,113 @@
+name: Build Bedrock Enhanced Native Launcher
+
+on:
+  push:
+    paths:
+      - 'launcher/**'
+      - '.github/workflows/launcher.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  launcher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout Bedrock Enhanced source and branding
+        uses: actions/checkout@v4
+
+      - name: Checkout licensed LeviLaunchroid foundation (pinned revision)
+        uses: actions/checkout@v4
+        with:
+          repository: LiteLDev/LeviLaunchroid
+          ref: cc5c7bc6eac48f1e82adf705b8b5f63ba0883247
+          path: upstream
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android SDK 36 / CMake
+        run: |
+          set -e
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;35.0.0" "cmake;3.22.1"
+
+      - name: Setup Xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: '2.9.9'
+          actions-cache-folder: '.xmake-cache'
+          actions-cache-key: 'bedrock-enhanced-launcher'
+
+      - name: Setup NDK r28c
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28c
+          link-to-sdk: true
+
+      - name: Apply Bedrock Enhanced changes with full attribution
+        run: |
+          python3 -m py_compile launcher/patch_upstream.py
+          python3 launcher/patch_upstream.py upstream
+          grep -q 'applicationId "com.bedrockenhanced.launcher"' upstream/app/build.gradle
+          grep -q 'BedrockEnhancedHomeActivity' upstream/app/src/main/AndroidManifest.xml
+          test -s upstream/app/src/main/assets/LEVI_LAUNCHROID_APACHE_2_LICENSE.txt
+          test -s upstream/app/src/main/assets/BEDROCK_ENHANCED_THIRD_PARTY_NOTICES.txt
+
+      - name: Create CI-only Firebase placeholder
+        run: |
+          cat > upstream/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "be-ci-placeholder",
+              "storage_bucket": "be-ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "com.bedrockenhanced.launcher"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{"current_key": "AIzaSyCIOnlyPlaceholderKey"}],
+                "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+          python3 -m json.tool upstream/app/google-services.json >/dev/null
+          echo 'curseforge.api_key=' > upstream/local.properties
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile launcher APK
+        working-directory: upstream
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace --max-workers=2
+
+      - name: Upload installable debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BedrockEnhanced-Launcher-v0.3.0-debug-apk
+          path: upstream/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
