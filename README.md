@@ -1,40 +1,41 @@
-# Bedrock Enhanced v0.2.0 — external Android overlay
+# Bedrock Enhanced — Android Minecraft Bedrock Launcher
 
-**Standalone Android companion, without any server add-on or modified Minecraft APK.**
+**Unofficial, independently branded Android launcher and native-mod project.** This repository is controlled by its Bedrock Enhanced maintainers, including the code and artwork they originally contribute. It **does not** transfer ownership of reused LeviMC or other third-party components.
 
-This version has been developed for the Samsung Galaxy S25+ (Android 16) with an external floating menu. It can appear over Minecraft regardless of which server you join, subject to Android overlay permissions and full-screen overlay restrictions.
+## Main project: Native launcher v0.3.1
 
-## Available now in the APK
+Development is in [launcher/](launcher). It adapts the Apache-2.0 licensed [LeviLaunchroid](https://github.com/LiteLDev/LeviLaunchroid) native-loader foundation and adds Bedrock Enhanced's original launcher UI, package ID `com.bedrockenhanced.launcher`, an explicit Play button, and an app updater targeting GitHub Releases at **lilblock1/Bedrock-Enhanced**.
 
-- Draggable bubble and compact tabbed overlay UI
-- Crosshair overlay: enable/disable, cross/dot/ring styles, adjustable size and three colors
-- Saved on-device crosshair and menu settings
-- Offline manual waypoints: name, XYZ, save, delete and copy teleport command (does not read the game location)
-- Operator-command clipboard tool: night vision, slow falling, creative/survival/spectator gamemode, coordinate rule, day/night, rain/clear, speed/jump potion effects
-- Speed and jump default to **1.0x** (no command until you choose a potion effect level)
-- Android diagnostics: battery percentage, display refresh rate, Android thermal status; **not actual Minecraft FPS**
-- Profile selector for friends' servers versus Realms
-- Minecraft launcher, foreground notification and stop control
+- [Launcher source and setup](launcher/README.md)
+- [Third-party credits](launcher/THIRD_PARTY_NOTICES.md)
+- [Native launcher builds](https://github.com/lilblock1/Bedrock-Enhanced/actions/workflows/launcher.yml)
+- [Official Bedrock Enhanced releases](https://github.com/lilblock1/Bedrock-Enhanced/releases)
 
-## What it does NOT do
+A license-verified Google Play Minecraft installation is required. The launcher does not bundle Minecraft game binaries. The startup flow intentionally uses the inherited runtime version-selection, compatibility rules, Play Store verification, and Minecraft loading activity. It has not yet been confirmed on a physical S25+.
 
-This APK cannot automatically modify Minecraft's player movement, world state, renderer, inventory or camera, or bypass a server's rules. Flight, true freecam, no-fall, X-ray/ore highlighting, native fullbright, FOV zoom, game FPS and rendering performance modifications require game-side integration and are **not** implemented. No buttons pretending to toggle those effects are active.
+The **gameplay mod menu and real mods are still development work**. Compilation of a native launcher is not proof that Fullbright, Fly, X-ray or other features exist or function on multiplayer servers.
 
-Clipboard command shortcuts require the Minecraft player to have the necessary operator permissions. They are **not** dispatched by the app. Do not rely on operator commands being accepted by Realms or servers unless the owner grants that permission. Creative and spectator gamemodes change how you play and can affect achievements or world behavior.
+## GitHub updater
 
-## Install / test
+The adapted launcher now looks up releases from this repository, **not** the LeviMC release feed, and only accepts `BedrockEnhanced-Launcher-*.apk` assets with the expected Android package identity.
 
-1. Download the APK from the latest successful GitHub Actions run under artifact `BedrockEnhanced-debug-apk`.
-2. Install this **separate companion app**.
-3. Grant *Display over other apps* when requested.
-4. Start the overlay, then launch Minecraft.
-5. Tap the BE bubble; use Visuals / Commands / Waypoints / Device tabs.
-6. Open Minecraft chat and manually paste copied commands on servers where you are an operator.
+To publish **in-place installable** updates, keep a single private Android signing key across releases. The [launcher build workflow](.github/workflows/launcher.yml) requires these GitHub Actions secrets before publishing an APK from a `vX.Y.Z` tag:
 
-Builds are debug-signed and may not update each other if GitHub CI rotates keys. Do not uninstall the companion app without exporting or recording your manual waypoints. Minecraft worlds are not modified.
+- `BEDROCK_SIGNING_KEYSTORE_BASE64` — Base64-encoded Java keystore
+- `BEDROCK_SIGNING_STORE_PASSWORD` — keystore password
+- `BEDROCK_SIGNING_KEY_ALIAS` — key alias
+- `BEDROCK_SIGNING_KEY_PASSWORD` — key password
 
-## Build
+**Never put a keystore or passwords in this public repository.** Without these secrets the workflow intentionally refuses to publish a release. GitHub Actions debug APKs are for testing; they may have different signatures and cannot be relied on for updates.
 
-Android SDK 35 / Java 17 / Gradle 8.9. GitHub Actions builds `gradle :app:assembleDebug` on push. The APK is uploaded as `BedrockEnhanced-debug-apk`.
+Once a signed versioned APK is published through GitHub Releases, the app can offer downloads of future versions. Android Package Installer still requires user confirmation and enforces signature consistency.
 
-The source compiles in GitHub CI; a physical Samsung device runtime test is still needed.
+## Legacy app: external utility overlay
+
+The separate original Android overlay remains in [app/](app) and still has its own [build workflow](.github/workflows/android.yml). It does not modify Minecraft's internal engine or provide movement hacks.
+
+## Licensing and attribution
+
+LeviLaunchroid original code © LeviMC contributors, Apache License 2.0. See [THIRD_PARTY_NOTICES.md](launcher/THIRD_PARTY_NOTICES.md) and the full [license](launcher/licenses/LeviLaunchroid-APACHE-2.0.txt), plus the upstream third-party notices. Bedrock Enhanced's original project-specific additions are distinct work. All trademarks belong to their respective owners.
+
+**Minecraft is © Mojang / Microsoft. Not affiliated with or endorsed by Mojang, Microsoft or LeviMC.**
