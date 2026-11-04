@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: bedrock-enhanced-native-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   launcher:
     runs-on: ubuntu-latest
@@ -123,7 +127,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: BedrockEnhanced-Launcher-v0.3.0-debug-apk
+          name: BedrockEnhanced-Launcher-debug-apk
           path: upstream/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 30
