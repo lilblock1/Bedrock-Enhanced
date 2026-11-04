@@ -2,13 +2,15 @@ name: Build Bedrock Enhanced Native Launcher
 
 on:
   push:
+    branches: [main]
+    tags: ['v*']
     paths:
       - 'launcher/**'
       - '.github/workflows/launcher.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   launcher:
@@ -60,6 +62,9 @@ jobs:
       - name: Apply Bedrock Enhanced changes with full attribution
         run: |
           python3 -m py_compile launcher/patch_upstream.py
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            export BE_VERSION="${GITHUB_REF_NAME#v}"
+          fi
           python3 launcher/patch_upstream.py upstream
           grep -q 'applicationId "com.bedrockenhanced.launcher"' upstream/app/build.gradle
           grep -q 'BedrockEnhancedHomeActivity' upstream/app/src/main/AndroidManifest.xml
@@ -103,6 +108,17 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :app:assembleDebug --no-daemon --stacktrace --max-workers=2
 
+      - name: Verify APK identity and native runtime libraries
+        if: success()
+        run: |
+          set -euo pipefail
+          APK="$(find upstream/app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | head -n 1)"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F 'com.bedrockenhanced.launcher'
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libpreloader.so'
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libgxcore.so'
+          unzip -l "$APK" | grep -F 'assets/LEVI_LAUNCHROID_APACHE_2_LICENSE.txt'
+
       - name: Upload installable debug APK
         if: success()
         uses: actions/upload-artifact@v4
@@ -111,3 +127,42 @@ jobs:
           path: upstream/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      # Stable release signing is required for Android in-place updates.
+      # All four signing secrets are required; never commit keystores.
+      - name: Sign stable GitHub release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          BEDROCK_KEYSTORE_B64: ${{ secrets.BEDROCK_SIGNING_KEYSTORE_BASE64 }}
+          BEDROCK_STORE_PASSWORD: ${{ secrets.BEDROCK_SIGNING_STORE_PASSWORD }}
+          BEDROCK_KEY_ALIAS: ${{ secrets.BEDROCK_SIGNING_KEY_ALIAS }}
+          BEDROCK_KEY_PASSWORD: ${{ secrets.BEDROCK_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${BEDROCK_KEYSTORE_B64:-}" || -z "${BEDROCK_STORE_PASSWORD:-}" || -z "${BEDROCK_KEY_ALIAS:-}" || -z "${BEDROCK_KEY_PASSWORD:-}" ]]; then
+            echo "::error::Release signing secrets missing. Publishing blocked."
+            exit 1
+          fi
+          printf "%s" "$BEDROCK_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/bedrock-release.jks"
+          chmod 600 "$RUNNER_TEMP/bedrock-release.jks"
+          INPUT_APK="$(find upstream/app/build/outputs/apk/debug -maxdepth 1 -name "*.apk" | head -n 1)"
+          ASSET="BedrockEnhanced-Launcher-${GITHUB_REF_NAME}.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/bedrock-release.jks" \
+            --ks-key-alias "$BEDROCK_KEY_ALIAS" \
+            --ks-pass env:BEDROCK_STORE_PASSWORD \
+            --key-pass env:BEDROCK_KEY_PASSWORD \
+            --out "$ASSET" "$INPUT_APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$ASSET"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$ASSET" | grep -F com.bedrockenhanced.launcher
+          echo "Signed APK ready: $ASSET"
+
+      - name: Publish signed update to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BedrockEnhanced-Launcher-${{ github.ref_name }}.apk
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true
