@@ -7,6 +7,11 @@ android {
     namespace = "com.bedrockenhanced.overlay"
     compileSdk = 35
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
     defaultConfig {
         applicationId = "com.bedrockenhanced.overlay"
         minSdk = 26
@@ -14,4 +19,8 @@ android {
         versionCode = 2
         versionName = "0.1.1"
     }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
