@@ -247,7 +247,7 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
         raise SystemExit("Upstream splash navigation changed")
     splash = splash.replace(
         splash_marker,
-        splash_marker + '\\n                if (getIntent().getBooleanExtra("BE_AUTO_LAUNCH", false)) '
+        splash_marker + '\n                if (getIntent().getBooleanExtra("BE_AUTO_LAUNCH", false)) '
                         'intent.putExtra("BE_AUTO_LAUNCH", true);',
         1,
     )
