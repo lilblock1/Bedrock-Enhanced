@@ -145,15 +145,6 @@ def patch_runtime(upstream: Path) -> None:
         "",
         "scan all installed split APK names",
     )
-    # List every native library actually missing from the real game cache,
-    # instead of silently reporting the first one after System.load fails.
-    source = replace_once(
-        source,
-        '        verifyLibraries(outputDir)',
-        '''        verifyLibraries(outputDir)''',
-        "verify-all anchor",
-    ) if False else source
-
     path.write_text(source, encoding="utf-8")
     print("Applied launcher native dependency recovery and missing-game-library preflight")
 
