@@ -1,0 +1,48 @@
+# Bedrock Enhanced Launcher — v0.3.0 experimental
+
+This is a **separate Android launcher** project with an original Bedrock Enhanced entry screen and a native Minecraft loading foundation **derived from LeviLaunchroid** (Copyright LeviMC contributors, Apache 2.0). This is neither the old overlay app nor a claim that the underlying loader was written from scratch.
+
+## Functionality being built
+
+- Dedicated Android package: `com.bedrockenhanced.launcher`
+- Original Bedrock Enhanced entry screen with installed official Minecraft version detection
+- Launches the retained, capable upstream Minecraft instance / native mod manager
+- Builds upstream launcher against a specific source revision, with credits and an Apache 2.0 license copy
+- Preserves original Minecraft installation; no proprietary game binaries bundled
+- Native ARM64 mod infrastructure from upstream; mod authoring happens separately
+
+## Current implementation status
+
+| Capability | Status |
+| --- | --- |
+| Custom entry UI and official game-detection code | Implemented in source |
+| Upstream derived native mod / instance runtime | Included through pinned source checkout; build and runtime verification pending |
+| Bedrock Enhanced native mod modules | Not yet implemented |
+| Client-side fullbright, FOV, freecam, X-ray, player motion | Not yet implemented |
+| Running on Galaxy S25+ with Bedrock | Device test pending |
+| Multiplayer friend-server compatibility | Not guaranteed; depends on server rules |
+
+## Reproduction
+
+The launcher build is defined by `.github/workflows/launcher.yml`. It checks out:
+
+`LiteLDev/LeviLaunchroid@cc5c7bc6eac48f1e82adf705b8b5f63ba0883247` and recursive submodules.
+
+Then `launcher/patch_upstream.py` applies a controlled set of changes and Gradle compiles an ARM64 Android debug APK. GitHub Actions publishes an APK artifact only when compilation succeeds.
+
+The base upstream build is complex (JDK21, Android SDK 36, NDK r28c, CMake, xmake). A complete build may fail due to missing upstream integrations; a green CI check does not certify that logging in and loading Minecraft works on your phone.
+
+## Acknowledgement and licenses
+
+- [LeviLaunchroid upstream](https://github.com/LiteLDev/LeviLaunchroid) — Copyright LeviMC contributors, Apache 2.0
+- See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [upstream license copy](licenses/LeviLaunchroid-APACHE-2.0.txt).
+- Dependencies including `preloader-android` and `microsoft/libHttpClient` carry separate licenses; preserve their notices and verify all licensing before publishing releases.
+- This project is **unofficial** and is not endorsed by LeviMC, Mojang or Microsoft.
+
+## Minecraft and servers
+
+A licensed Minecraft Bedrock installation from Google Play is required. No copyrighted Minecraft client binary is redistributed. Native mods still cannot guarantee movement hacks on servers with authoritative movement or other enforcement; permission from a friend does not automatically bypass server checks.
+
+## Existing overlay project
+
+The original Bedrock Enhanced external overlay under root `app/` is retained and has its own `android.yml` workflow. The new derived launcher is built separately as a second APK with a different package name.
