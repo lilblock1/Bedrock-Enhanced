@@ -259,6 +259,9 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
     substitutions = {
         'eula_title': 'Bedrock Enhanced Launcher License Agreement',
         'about_subtitle': 'Bedrock Enhanced — Android Minecraft Bedrock Launcher',
+        'about_footer_github': 'GitHub: https://github.com/lilblock1/Bedrock-Enhanced',
+        'about_github_org': 'lilblock1',
+        'about_author_role': 'Bedrock Enhanced contributors; LeviMC runtime credits retained',
         'about_github_repo': 'GitHub · Bedrock Enhanced',
         'about_contribute_desc': 'Contributions to Bedrock Enhanced are welcome via our GitHub repository.',
         'changelog_version': 'Bedrock Enhanced %1$s',
