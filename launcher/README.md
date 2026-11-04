@@ -1,4 +1,4 @@
-# Bedrock Enhanced Launcher — v0.3.1 experimental
+# Bedrock Enhanced Launcher — v0.3.2 experimental
 
 This is a **separate Android launcher** project with an original Bedrock Enhanced entry screen and a native Minecraft loading foundation **derived from LeviLaunchroid** (Copyright LeviMC contributors, Apache 2.0). This is neither the old overlay app nor a claim that the underlying loader was written from scratch.
 
@@ -47,7 +47,7 @@ A licensed Minecraft Bedrock installation from Google Play is required. No copyr
 
 The original Bedrock Enhanced external overlay under root `app/` is retained and has its own `android.yml` workflow. The new derived launcher is built separately as a second APK with a different package name.
 
-## v0.3.1 startup and update changes
+## v0.3.2 startup and update changes
 
 - Launcher "Play modded Minecraft" now opens the integrated runtime and sends a one-shot auto-launch request. It follows the upstream installed-version manager, selected instance, game-file preparation, and Google Play ownership checks.
 - If the game version is unavailable, the runtime offers **Import APK / APKS** or **Choose version** instead of a silent no-op.
@@ -55,3 +55,12 @@ The original Bedrock Enhanced external overlay under root `app/` is retained and
 - The native runtime's preloader signature-rule updates are **not** the app auto-update channel; upstream compatibility rule data remains managed upstream until we implement and validate our own mirror.
 - GitHub CI debug builds are not stable signed releases. Android will reject app updates signed with different keys. For installable in-place release updates, configure a protected signing keystore and the release workflow described in the source. Do not publish the private key.
 - This is a source/build pipeline milestone; launching the Minecraft runtime on a physical Android device still requires a device test. No gameplay hacks are implemented yet.
+
+## v0.3.2 — Missing C++ runtime and launcher controls
+
+- **Native start fix:** On some licensed Google Play Minecraft versions, the extracted game ABI directory has no `libc++_shared.so`. The launcher now copies its own bundled ARM64 C++ runtime into the safe, read-only game library cache before verifying libraries. If Android stores native libraries within the APK instead of on disk, the loader also attempts `System.loadLibrary("c++_shared")`.
+- **Recovery:** The Bedrock Enhanced home screen has a confirmed *Repair Minecraft native library cache* button. It clears only regenerable native-library files for the installed Minecraft profile. It does **not** erase worlds, accounts, mods, saves, resource packs or original Minecraft files.
+- **Home actions:** Play and Manage use the adapted native launcher; refresh installation status displays confirmation; Minecraft launch failures show a message; project credits, upstream credits, and update releases have separate links.
+- **CI verification:** The APK must contain an ARM64 `libc++_shared.so`, preloader, gxcore and the license notice.
+
+**Verification:** Successful compilation and presence of libraries in the APK do not prove Minecraft reaches its main menu. Test on an Android device. If the next startup error references another library, provide the complete launch log. The launcher does not ship completed gameplay mods yet.
