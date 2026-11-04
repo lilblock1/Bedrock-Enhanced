@@ -7,6 +7,7 @@ This patch script is original Bedrock Enhanced code.
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import re
 import shutil
@@ -25,6 +26,10 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
     if not (app / "build.gradle").is_file():
         raise SystemExit("Upstream LeviLaunchroid checkout is missing app/build.gradle")
 
+    version_name = os.environ.get("BE_VERSION", "0.3.1").lstrip("v")
+    if re.fullmatch(r"\d+\.\d+\.\d+", version_name) is None:
+        raise SystemExit("BE_VERSION must be major.minor.patch, e.g. 0.3.1")
+
     replace_once(
         app / "build.gradle",
         'applicationId "org.levimc.launcher"',
@@ -33,7 +38,7 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
     replace_once(
         app / "build.gradle",
         'versionName getGitTag()',
-        'versionName "0.3.1"',
+        'versionName "' + version_name + '"',
     )
     replace_once(
         app / "src/main/res/values/strings.xml",
