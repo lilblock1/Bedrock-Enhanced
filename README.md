@@ -2,7 +2,7 @@
 
 **Unofficial, independently branded Android launcher and native-mod project.** This repository is controlled by its Bedrock Enhanced maintainers, including the code and artwork they originally contribute. It **does not** transfer ownership of reused LeviMC or other third-party components.
 
-## Main project: Native launcher v0.3.1
+## Main project: Native launcher v0.3.2
 
 Development is in [launcher/](launcher). It adapts the Apache-2.0 licensed [LeviLaunchroid](https://github.com/LiteLDev/LeviLaunchroid) native-loader foundation and adds Bedrock Enhanced's original launcher UI, package ID `com.bedrockenhanced.launcher`, an explicit Play button, and an app updater targeting GitHub Releases at **lilblock1/Bedrock-Enhanced**.
 
@@ -39,3 +39,7 @@ The separate original Android overlay remains in [app/](app) and still has its o
 LeviLaunchroid original code © LeviMC contributors, Apache License 2.0. See [THIRD_PARTY_NOTICES.md](launcher/THIRD_PARTY_NOTICES.md) and the full [license](launcher/licenses/LeviLaunchroid-APACHE-2.0.txt), plus the upstream third-party notices. Bedrock Enhanced's original project-specific additions are distinct work. All trademarks belong to their respective owners.
 
 **Minecraft is © Mojang / Microsoft. Not affiliated with or endorsed by Mojang, Microsoft or LeviMC.**
+
+## Current recovery fix
+
+Native launcher v0.3.2 adds a safe `libc++_shared.so` fallback for missing Minecraft runtime libraries and a Repair Minecraft native library cache button. The updated APK is built by [launcher workflow](.github/workflows/launcher.yml). Device startup still needs verification on S25+.
