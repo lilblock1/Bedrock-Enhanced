@@ -27,8 +27,8 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             setPadding(0, 10, 0, 16)
         }
-        root.addView(label("BEDROCK ENHANCED  •  0.1.1", 23f))
-        root.addView(label("Standalone Android utility overlay. The floating bubble and crosshair are implemented. Multiplayer hacks are NOT connected to Minecraft or Realms.", 14f))
+        root.addView(label("BEDROCK ENHANCED  •  0.2.0", 23f))
+        root.addView(label("Standalone Android utility overlay. The floating bubble and crosshair are implemented. External crosshair and utility tools work without server modifications. Operator commands must be pasted manually; unsupported native hacks remain unavailable.", 14f))
         permissionStatus = label("", 14f)
         root.addView(permissionStatus)
         root.addView(Button(this).apply {
