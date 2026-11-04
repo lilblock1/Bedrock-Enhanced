@@ -72,3 +72,12 @@ The launcher embeds two ARM64 dependencies which some Minecraft APK/split combin
 The extraction path now checks **all** installed Minecraft split APK filenames, not only paths containing ABI tokens. For imported game versions, it stops mixing ARM32 and ARM64 native binaries in a single runtime cache. A preflight reports the complete list of missing **Minecraft-supplied** native libraries (such as `libminecraftpe.so`, `libfmod.so`, `libMediaDecoders_Android.so`, or the version-dependent `libMallocRedirect.so`) and asks for a legitimate matching ARM64 split installation or safe cache repair. We do not download or distribute proprietary Minecraft libraries.
 
 The dedicated launcher CI validates the APK package, bundled ARM64 dependencies, embedded license notices and native-library ELF architecture. **CI is not a device test**: after installing, Minecraft must still be launched on an S25+ to confirm actual compatibility with its installed version. Any new error should include the full launch log.
+
+
+## v0.3.4 — Fix game APK split detection
+
+Minecraft's own `libminecraftpe.so`, `libfmod.so`, and `libMediaDecoders_Android.so` must come from the licensed Minecraft installation. The inherited native loader previously consulted `splitPublicSourceDirs` for installed packages, which can omit the ARM64 splits. The launcher now checks both `splitSourceDirs` and `splitPublicSourceDirs` from the package context and Android PackageManager, plus the base APK, de-duplicates paths, and checks read access. Missing or unreadable game APKs are reported explicitly; all native extraction failures are logged.
+
+The Bedrock Enhanced home screen now includes **Diagnose Minecraft game files**, which scans the installed Minecraft base and split APKs plus Android's native lib directory for the three key game libraries, then offers a copyable report. The **Repair Minecraft native library cache** control remains limited to regenerable files. No Minecraft game files are redistributed, and ownership checks remain intact.
+
+**Runtime launch not yet validated on a physical phone.** A green CI build confirms compilation, not successful Minecraft startup.

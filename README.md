@@ -43,3 +43,6 @@ LeviLaunchroid original code © LeviMC contributors, Apache License 2.0. See [TH
 ## Current recovery fix
 
 Native launcher v0.3.2 adds a safe `libc++_shared.so` fallback for missing Minecraft runtime libraries and a Repair Minecraft native library cache button. The updated APK is built by [launcher workflow](.github/workflows/launcher.yml). Device startup still needs verification on S25+.
+
+
+Native launcher **v0.3.4** repairs installed Minecraft ARM64 split-source discovery and adds an on-device diagnostic for missing game libraries. See [launcher/README.md](launcher/README.md).

@@ -73,6 +73,9 @@ jobs:
           python3 launcher/patch_runtime_fixes.py upstream
           grep -q 'restoreBundledDependencies(outputDir)' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
           grep -q 'verifyGameNativeDependencies(outputDir)' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          grep -q 'installed.splitSourceDirs' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          grep -q 'Minecraft APK source' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          grep -q 'Diagnose Minecraft game files' upstream/app/src/main/java/org/levimc/launcher/ui/activities/BedrockEnhancedHomeActivity.java
           grep -q 'normalizedName == "HttpClient.Android"' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
           ! grep -q 'val fallbackAbis = listOf' upstream/app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
           grep -q 'Repair Minecraft native library cache' upstream/app/src/main/java/org/levimc/launcher/ui/activities/BedrockEnhancedHomeActivity.java

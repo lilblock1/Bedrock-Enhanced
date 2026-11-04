@@ -26,7 +26,7 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
     if not (app / "build.gradle").is_file():
         raise SystemExit("Upstream LeviLaunchroid checkout is missing app/build.gradle")
 
-    version_name = os.environ.get("BE_VERSION", "0.3.3").lstrip("v")
+    version_name = os.environ.get("BE_VERSION", "0.3.4").lstrip("v")
     if re.fullmatch(r"\d+\.\d+\.\d+", version_name) is None:
         raise SystemExit("BE_VERSION must be major.minor.patch, e.g. 0.3.1")
 
