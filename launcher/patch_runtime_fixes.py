@@ -25,39 +25,64 @@ def patch_runtime(upstream: Path) -> None:
     source = replace_once(
         source,
         "        verifyLibraries(outputDir)",
-        "        restoreLauncherCppRuntime(outputDir)\n        verifyLibraries(outputDir)",
+        "        restoreBundledDependencies(outputDir)\n        verifyLibraries(outputDir)\n        verifyGameNativeDependencies(outputDir)",
         "extractLibrary fallback",
     )
     helper = '''
     /**
-     * Use the already-bundled ARM64 C++ runtime if Minecraft APK/splits omit it.
-     * This is a launcher library, not a copied proprietary Minecraft game file.
-     * No external download, root, or world-file modification is involved.
+     * Minecraft's installed split APKs may omit native dependencies which
+     * the launcher already bundles. Restore ONLY our own native libraries.
+     * Never substitute a launcher .so for a proprietary Minecraft binary.
      */
-    private fun restoreLauncherCppRuntime(outputDir: File) {
-        val destination = File(outputDir, "libc++_shared.so")
-        if (destination.isFile && destination.length() > 0L) return
-
-        val bundledDir = context.applicationInfo.nativeLibraryDir
-        if (bundledDir.isNullOrBlank()) {
-            report("Bundled C++ library directory unavailable")
-            return
-        }
-        val bundled = File(bundledDir, "libc++_shared.so")
-        if (!bundled.isFile || bundled.length() <= 0L) {
-            report("Bundled libc++_shared.so missing at ${bundled.absolutePath}")
-            return
-        }
-        try {
-            bundled.inputStream().use { input ->
-                copyStreamToReadOnlyFile(input, destination)
+    private fun restoreBundledDependencies(outputDir: File) {
+        val nativeDir = context.applicationInfo.nativeLibraryDir
+        val bundledLibs = listOf("libc++_shared.so", "libHttpClient.Android.so")
+        for (library in bundledLibs) {
+            val target = File(outputDir, library)
+            if (target.isFile && target.length() > 0L) continue
+            if (nativeDir.isNullOrBlank()) {
+                report("Bundled native directory unavailable for $library; trying Android class loader")
+                continue
             }
-            report("Restored libc++_shared.so from Bedrock Enhanced ARM64 runtime")
-        } catch (e: Exception) {
-            destination.delete()
-            Log.w(TAG, "Unable to restore launcher C++ runtime", e)
-            report("Launcher C++ runtime restoration failed: ${e.message}")
+            val source = File(nativeDir, library)
+            if (!source.isFile || source.length() <= 0L) {
+                report("No extracted $library in launcher; Android may load it directly from APK")
+                continue
+            }
+            try {
+                source.inputStream().use { input -> copyStreamToReadOnlyFile(input, target) }
+                report("Restored $library from launcher native runtime")
+            } catch (error: Exception) {
+                target.delete()
+                Log.w(TAG, "Could not restore launcher $library", error)
+                report("Restore failed for $library: ${error.message}")
+            }
         }
+    }
+
+    /**
+     * Preflight reports ALL genuinely absent game libraries together. The
+     * bundled C++ and HTTP libraries can also resolve using Android's native
+     * class loader and therefore are not counted as missing game assets.
+     */
+    private fun verifyGameNativeDependencies(outputDir: File) {
+        val providedByLauncher = setOf("libc++_shared.so", "libHttpClient.Android.so")
+        val missing = getCacheRequiredLibs().filter { library ->
+            library !in providedByLauncher && File(outputDir, library).let {
+                !it.isFile || it.length() <= 0L
+            }
+        }
+        if (missing.isNotEmpty()) {
+            val names = missing.joinToString(", ")
+            report("Preflight: missing Minecraft game libraries: $names")
+            throw IllegalStateException(
+                "Missing Minecraft game libraries: $names. " +
+                "Check that the installed Minecraft version includes all matching " +
+                "ARM64 split APKs. In Bedrock Enhanced, use Repair Minecraft " +
+                "native library cache, then retry. Worlds are unaffected."
+            )
+        }
+        report("Native game-library preflight passed")
     }
 
 '''
@@ -73,24 +98,28 @@ def patch_runtime(upstream: Path) -> None:
     # The app's own class loader can still load a properly packaged .so.
     marker = '        val resolvedPath = resolveLibraryPath(name)'
     fallback = '''
-        if (normalizedName == "c++_shared" &&
-            (resolveLibraryPath(name) == null)) {
+        // Both dependencies ship with Bedrock Enhanced. When the installed
+        // Minecraft split APKs do not contain them and the extracted cache is
+        // empty, try the Android class loader before reporting an error.
+        if ((normalizedName == "c++_shared" ||
+                normalizedName == "HttpClient.Android") &&
+            resolveLibraryPath(name) == null) {
             try {
-                System.loadLibrary("c++_shared")
-                report("Using bundled launcher libc++_shared.so")
+                System.loadLibrary(normalizedName)
+                report("Loaded bundled $fileName using Android class loader")
                 return LibraryLoadResult(
-                    normalizedName, fileName, "launcher packaged native library",
+                    normalizedName, fileName, "launcher packaged native dependency",
                     true, elapsedSince(startedAt)
                 )
-            } catch (e: UnsatisfiedLinkError) {
-                report("Bundled libc++_shared.so load failed: ${e.message}")
+            } catch (error: UnsatisfiedLinkError) {
+                report("Launcher packaged $fileName could not load: ${error.message}")
             }
         }
 
 '''
     source = replace_once(source, marker, fallback + marker, "C++ load fallback")
     path.write_text(source, encoding="utf-8")
-    print("Applied C++ runtime cache recovery and APK-native load fallback")
+    print("Applied launcher native dependency recovery and missing-game-library preflight")
 
 
 if __name__ == "__main__":
