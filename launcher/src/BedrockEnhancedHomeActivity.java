@@ -9,6 +9,7 @@
 package org.levimc.launcher.ui.activities;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -27,6 +28,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.io.File;
 
 public final class BedrockEnhancedHomeActivity extends Activity {
     private final int background = Color.rgb(14, 20, 29);
@@ -103,13 +105,26 @@ public final class BedrockEnhancedHomeActivity extends Activity {
 
         button("Launch mod-capable Minecraft", this::openRuntime);
         button("Minecraft instances and native mods", this::openRuntime);
-        button("Refresh Minecraft license detection", this::updateStatus);
+        button("Refresh Minecraft installation status", () -> {
+            updateStatus();
+            Toast.makeText(this, gameStatus.getText(), Toast.LENGTH_SHORT).show();
+        });
+        button("Repair Minecraft native library cache", this::confirmRuntimeCacheRepair);
+        button("Check Bedrock Enhanced updates", () ->
+            openSite("https://github.com/lilblock1/Bedrock-Enhanced/releases"));
         button("Open official Minecraft app", () -> {
             Intent installed = getPackageManager().getLaunchIntentForPackage("com.mojang.minecraftpe");
             if (installed == null) {
                 Toast.makeText(this, "Install a licensed Minecraft copy from Google Play first.", Toast.LENGTH_LONG).show();
                 openMinecraftStore();
-            } else startActivity(installed);
+            } else {
+                try {
+                    startActivity(installed);
+                } catch (RuntimeException exception) {
+                    Toast.makeText(this, "Unable to open Minecraft: " + exception.getMessage(),
+                        Toast.LENGTH_LONG).show();
+                }
+            }
         });
 
         container.addView(text("Native runtime", 19, Color.WHITE, true));
@@ -124,7 +139,9 @@ public final class BedrockEnhancedHomeActivity extends Activity {
             + "but servers can still enforce movement, damage and inventory rules.",
             14, Color.LTGRAY, false));
 
-        button("Open source and third-party credits", () ->
+        button("Bedrock Enhanced project and credits", () ->
+            openSite("https://github.com/lilblock1/Bedrock-Enhanced/blob/main/launcher/THIRD_PARTY_NOTICES.md"));
+        button("LeviMC / original launcher credits", () ->
             openSite("https://github.com/LiteLDev/LeviLaunchroid"));
         container.addView(text(
             "Not affiliated with Mojang, Microsoft or LeviMC. "
@@ -157,6 +174,44 @@ public final class BedrockEnhancedHomeActivity extends Activity {
             Toast.makeText(this, "Cannot open game runtime: " + error.getClass().getSimpleName(),
                 Toast.LENGTH_LONG).show();
         }
+    }
+
+    // Only clears regenerated extracted game libraries, never Minecraft worlds,
+    // packs, account data, mod files, or the official Minecraft installation.
+    private void confirmRuntimeCacheRepair() {
+        new AlertDialog.Builder(this)
+            .setTitle("Repair Minecraft startup libraries")
+            .setMessage("Clear the cached extracted native libraries? The launcher will recreate them on next Play. Worlds and game data are not deleted.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Repair cache", (dialog, which) -> repairNativeCache())
+            .show();
+    }
+
+    private void repairNativeCache() {
+        File cacheDir = new File(getFilesDir(), "minecraft_libs/com.mojang.minecraftpe/arm64");
+        File[] entries = cacheDir.listFiles();
+        if (entries == null) {
+            Toast.makeText(this, "No extracted library cache exists yet.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        int cleared = 0;
+        int failed = 0;
+        for (File entry : entries) {
+            if (entry.isFile() && (entry.getName().endsWith(".so")
+                    || entry.getName().startsWith(".extraction_")
+                    || entry.getName().endsWith(".ok"))) {
+                if (entry.delete()) cleared++; else failed++;
+            }
+        }
+        Toast.makeText(this, "Library cache cleared: " + cleared
+            + (failed > 0 ? ", failed: " + failed : "")
+            + ". Tap Play to rebuild.", Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateStatus();
     }
 
     private void openMinecraftStore() {
