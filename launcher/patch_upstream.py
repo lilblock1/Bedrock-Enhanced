@@ -139,6 +139,19 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
         'https://github.com/lilblock1/Bedrock-Enhanced',
         1,
     )
+    # Make Check for Updates a direct one-tap action. The unrelated upstream
+    # hidden Easter egg is removed from this independent launcher.
+    start = settings_content.index("    private void handleUpdateButtonClick() {")
+    end = settings_content.index("    private void setupNavBar() {", start)
+    settings_content = (
+        settings_content[:start]
+        + """    private void handleUpdateButtonClick() {
+        new GithubReleaseUpdater(this, "lilblock1", "Bedrock-Enhanced", permissionResultLauncher).checkUpdate();
+    }
+
+"""
+        + settings_content[end:]
+    )
     settings_path.write_text(settings_content, encoding="utf-8")
 
     # The upstream updater picked the first *.apk; our repository also builds
