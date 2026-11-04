@@ -135,6 +135,12 @@ class OverlayService : Service() {
         })
     }
 
+    private fun refreshPanel() {
+        remove(panel)
+        panel = null
+        togglePanel()
+    }
+
     private fun togglePanel() {
         if (panel != null) { remove(panel); panel = null; return }
         val scroll = ScrollView(this).apply {
@@ -144,71 +150,159 @@ class OverlayService : Service() {
         }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(15), dp(12), dp(15), dp(16))
+            setPadding(dp(13), dp(12), dp(13), dp(16))
         }
         scroll.addView(content)
-        title("BEDROCK ENHANCED  •  v0.1.1", content)
-        info("Floating Android utility panel — no game injection", content)
+        title("BEDROCK ENHANCED  •  v0.2.0", content)
+        info("External Android menu  •  no Minecraft process access", content)
+
+        val tabs = listOf(
+            "Visuals" to "visuals", "Commands" to "commands",
+            "Player" to "player", "Waypoints" to "waypoints",
+            "Device" to "device", "Planned" to "planned"
+        )
+        val page = prefs.getString("menu_page", "visuals") ?: "visuals"
+        for (rowIndex in 0 until 3) {
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (pair in tabs.subList(rowIndex * 2, rowIndex * 2 + 2)) {
+                row.addView(Button(this).apply {
+                    text = if (page == pair.second) "• " + pair.first else pair.first
+                    isAllCaps = false
+                    textSize = 11f
+                    setOnClickListener {
+                        prefs.edit().putString("menu_page", pair.second).apply()
+                        refreshPanel()
+                    }
+                }, LinearLayout.LayoutParams(0, dp(45), 1f))
+            }
+            content.addView(row)
+        }
+
+        when(page) {
+            "visuals" -> {
+                title("Client-side overlays", content)
+                content.addView(Switch(this).apply {
+                    text = "Custom crosshair  ✓ working"
+                    textSize = 14f
+                    setTextColor(Color.WHITE)
+                    isChecked = prefs.getBoolean("crosshair", false)
+                    setOnCheckedChangeListener { _, active ->
+                        prefs.edit().putBoolean("crosshair", active).apply()
+                        if (active) showCrosshair() else hideCrosshair()
+                    }
+                })
+                info("Crosshair size", content)
+                content.addView(SeekBar(this).apply {
+                    max = 26
+                    progress = prefs.getInt("crosshair_size", 12).coerceIn(4, 30) - 4
+                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                            if (fromUser) {
+                                prefs.edit().putInt("crosshair_size", value + 4).apply()
+                                crosshair?.invalidate()
+                            }
+                        }
+                        override fun onStartTrackingTouch(bar: SeekBar?) {}
+                        override fun onStopTrackingTouch(bar: SeekBar?) {}
+                    })
+                })
+                content.addView(Button(this).apply {
+                    fun name() = when (prefs.getInt("crosshair_color", 0)) {
+                        1 -> "Lime"; 2 -> "Cyan"; else -> "White"
+                    }
+                    text = "Crosshair color: ${name()}"
+                    isAllCaps = false
+                    setOnClickListener {
+                        val next = (prefs.getInt("crosshair_color", 0) + 1) % 3
+                        prefs.edit().putInt("crosshair_color", next).apply()
+                        crosshair?.invalidate()
+                        text = "Crosshair color: ${name()}"
+                    }
+                })
+                content.addView(Button(this).apply {
+                    fun name() = when (prefs.getInt("crosshair_style", 0)) {
+                        1 -> "Dot"; 2 -> "Ring"; else -> "Cross"
+                    }
+                    text = "Crosshair style: ${name()}"
+                    isAllCaps = false
+                    setOnClickListener {
+                        val next = (prefs.getInt("crosshair_style", 0) + 1) % 3
+                        prefs.edit().putInt("crosshair_style", next).apply()
+                        crosshair?.invalidate()
+                        text = "Crosshair style: ${name()}"
+                    }
+                })
+                info("The crosshair follows screen center, not the Minecraft aim engine.", content)
+                listOf("Native fullbright", "Custom FOV / zoom", "Ore highlighting",
+                    "Reduced fog", "Reduced particles", "Performance textures", "Compact HUD"
+                ).forEach { planned(it, content) }
+            }
+            "commands" -> {
+                ExternalTools(this, prefs) { refreshPanel() }.addCommandTools(content)
+            }
+            "player" -> {
+                title("Movement helpers", content)
+                info("1.0× speed and 1.0× jump by default. Actual gameplay changes require Minecraft command permissions or an integrated client.", content)
+                content.addView(Button(this).apply {
+                    text = "Open operator command shortcuts"
+                    isAllCaps = false
+                    setOnClickListener {
+                        prefs.edit().putString("menu_page", "commands").apply()
+                        refreshPanel()
+                    }
+                })
+                listOf("Unrestricted survival flight", "No-fall override", "True free camera",
+                    "Auto-step", "Auto-tool", "Inventory shortcuts"
+                ).forEach { planned(it, content) }
+            }
+            "waypoints" -> {
+                ExternalTools(this, prefs) { refreshPanel() }.addWaypoints(content)
+            }
+            "device" -> {
+                title("Android device diagnostics", content)
+                val battery = getSystemService(BATTERY_SERVICE) as BatteryManager
+                val pct = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                val refresh = wm.defaultDisplay.refreshRate
+                val pm = getSystemService(POWER_SERVICE) as PowerManager
+                val thermal = if (Build.VERSION.SDK_INT >= 29) pm.currentThermalStatus.toString() else "N/A"
+                info("Battery: ${if (pct in 0..100) "$pct%" else "unavailable"}", content)
+                info("Display: ${"%.1f".format(refresh)} Hz (not the game FPS)", content)
+                info("Android thermal status: $thermal (0 = none, larger = more throttling risk)", content)
+                info("This separate app cannot obtain Minecraft FPS or its GPU frame times through public Android APIs.", content)
+            }
+            else -> {
+                title("Planned: requires game integration", content)
+                listOf("True flight", "Speed / jump override without OP",
+                    "No-fall override", "Fullbright shader", "Spectator-style freecam",
+                    "Ore rendering", "Zoom", "Actual game FPS", "Automated coordinates",
+                    "Auto-tool", "Native performance presets"
+                ).forEach { planned(it, content) }
+                info("No server add-on is installed or required for this overlay. Features listed here are not implemented.", content)
+            }
+        }
+
         val realms = prefs.getBoolean("realms_profile", false)
         content.addView(Button(this).apply {
-            text = if (realms) "Mode: Realms (tap for own server)" else "Mode: Own server (tap for Realms)"
+            text = if (realms) "Profile: Realms (tap for other servers)" else "Profile: Other servers (tap for Realms)"
+            isAllCaps = false
             setOnClickListener {
                 prefs.edit().putBoolean("realms_profile", !realms).apply()
-                remove(panel); panel = null; togglePanel()
+                refreshPanel()
             }
-        })
-        title("Visuals", content)
-        content.addView(Switch(this).apply {
-            text = "Custom crosshair (working)"
-            textSize = 14f
-            setTextColor(Color.WHITE)
-            isChecked = prefs.getBoolean("crosshair", false)
-            setOnCheckedChangeListener { _, active ->
-                prefs.edit().putBoolean("crosshair", active).apply()
-                if (active) showCrosshair() else hideCrosshair()
-            }
-        })
-        info("Crosshair size", content)
-        content.addView(SeekBar(this).apply {
-            max = 26; progress = prefs.getInt("crosshair_size", 12) - 4
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
-                    if (fromUser) { prefs.edit().putInt("crosshair_size", value + 4).apply(); crosshair?.invalidate() }
-                }
-                override fun onStartTrackingTouch(bar: SeekBar?) {}
-                override fun onStopTrackingTouch(bar: SeekBar?) {}
-            })
         })
         content.addView(Button(this).apply {
-            fun name() = when (prefs.getInt("crosshair_color", 0)) { 1 -> "Lime"; 2 -> "Cyan"; else -> "White" }
-            text = "Crosshair color: ${name()}"
-            setOnClickListener {
-                val n = (prefs.getInt("crosshair_color", 0) + 1) % 3
-                prefs.edit().putInt("crosshair_color", n).apply()
-                crosshair?.invalidate()
-                text = "Crosshair color: ${name()}"
-            }
+            text = "Close menu"
+            isAllCaps = false
+            setOnClickListener { togglePanel() }
         })
-        listOf("Fullbright", "Ore highlighting", "Custom zoom", "Reduce particles", "Reduced fog", "Compact HUD", "Performance textures").forEach { planned(it, content) }
-        title("Player", content)
-        listOf("Fly", "Speed (1.0× default)", "Jump (1.0× default)", "No fall damage", "Freecam", "Auto tool").forEach { planned(it, content) }
-        title("World & utilities", content)
-        listOf("Time control", "Weather control", "Waypoints").forEach { planned(it, content) }
-        title("Device diagnostics", content)
-        val battery = getSystemService(BATTERY_SERVICE) as BatteryManager
-        val pct = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        val refresh = wm.defaultDisplay.refreshRate
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        val thermal = if (Build.VERSION.SDK_INT >= 29) pm.currentThermalStatus.toString() else "N/A"
-        info("Battery: ${if (pct in 0..100) "$pct%" else "unavailable"} | Display refresh: ${"%.0f".format(refresh)} Hz | Thermal status: $thermal", content)
-        info("Actual Minecraft FPS cannot be read by a standard overlay. FPS integration is pending.", content)
-        content.addView(Button(this).apply { text = "Close menu"; setOnClickListener { togglePanel() } })
         val metrics = resources.displayMetrics
-        val width = minOf(dp(325), (metrics.widthPixels - dp(25)).coerceAtLeast(dp(180)))
+        val width = minOf(dp(345), (metrics.widthPixels - dp(25)).coerceAtLeast(dp(180)))
         val height = minOf(dp(545), (metrics.heightPixels * .85f).toInt())
-        val lp = params(width, height)
-        lp.x = (metrics.widthPixels - width - dp(12)).coerceAtLeast(0)
-        lp.y = dp(44)
+        val lp = params(width, height, WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL).apply {
+            x = (metrics.widthPixels - width - dp(12)).coerceAtLeast(0)
+            y = dp(30)
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        }
         wm.addView(scroll, lp)
         panel = scroll
     }
@@ -226,10 +320,20 @@ class OverlayService : Service() {
                 val radius = dp(prefs.getInt("crosshair_size", 12)).toFloat()
                 val gap = dp(3).toFloat()
                 val x = width / 2f; val y = height / 2f
-                canvas.drawLine(x - radius, y, x - gap, y, pen)
-                canvas.drawLine(x + gap, y, x + radius, y, pen)
-                canvas.drawLine(x, y - radius, x, y - gap, pen)
-                canvas.drawLine(x, y + gap, x, y + radius, pen)
+                when (prefs.getInt("crosshair_style", 0)) {
+                    1 -> {
+                        pen.style = Paint.Style.FILL
+                        canvas.drawCircle(x, y, dp(2).toFloat(), pen)
+                        pen.style = Paint.Style.STROKE
+                    }
+                    2 -> canvas.drawCircle(x, y, radius * 0.55f, pen)
+                    else -> {
+                        canvas.drawLine(x - radius, y, x - gap, y, pen)
+                        canvas.drawLine(x + gap, y, x + radius, y, pen)
+                        canvas.drawLine(x, y - radius, x, y - gap, pen)
+                        canvas.drawLine(x, y + gap, x, y + radius, pen)
+                    }
+                }
             }
         }
         // A small window with touch pass-through helps avoid Android 12+ touch blocking.
