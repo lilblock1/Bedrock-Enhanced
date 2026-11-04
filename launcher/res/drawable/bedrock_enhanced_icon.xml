@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Original BE icon: charcoal tile with pixel-styled green blocks. -->
+    <path android:fillColor="#12222A" android:pathData="M0,0 L108,0 L108,108 L0,108 Z"/>
+    <path android:fillColor="#1CB98B" android:pathData="M18,18 L90,18 L90,90 L18,90 Z"/>
+    <path android:fillColor="#12222A" android:pathData="M26,29 L47,29 L53,35 L53,48 L47,53 L26,53 Z"/>
+    <path android:fillColor="#F2FFF9" android:pathData="M31,34 L43,34 L47,37 L47,42 L43,45 L31,45 Z"/>
+    <path android:fillColor="#12222A" android:pathData="M60,29 L84,29 L84,36 L67,36 L67,39 L81,39 L81,46 L67,46 L67,53 L60,53 Z"/>
+    <path android:fillColor="#12222A" android:pathData="M26,60 L47,60 L53,66 L53,79 L47,84 L26,84 Z"/>
+    <path android:fillColor="#F2FFF9" android:pathData="M32,66 L43,66 L47,70 L47,74 L43,78 L32,78 Z"/>
+    <path android:fillColor="#12222A" android:pathData="M60,60 L84,60 L84,67 L67,67 L67,70 L81,70 L81,76 L67,76 L67,78 L84,78 L84,84 L60,84 Z"/>
+</vector>
