@@ -145,6 +145,114 @@ def patch_runtime(upstream: Path) -> None:
         "",
         "scan all installed split APK names",
     )
+
+    # The licensed installed package may expose its native game libraries
+    # only in splitSourceDirs. Upstream checked splitPublicSourceDirs alone.
+    source = replace_once(
+        source,
+        '            appInfo.splitPublicSourceDirs?.let { paths.addAll(it) }',
+        '''            appInfo.splitSourceDirs?.let { paths.addAll(it) }
+            appInfo.splitPublicSourceDirs?.let { paths.addAll(it) }
+            appInfo.publicSourceDir?.let { paths.add(it) }
+            runCatching {
+                context.packageManager.getApplicationInfo(MinecraftLauncher.MC_PACKAGE_NAME, 0)
+            }.onSuccess { installed ->
+                installed.sourceDir?.let { paths.add(it) }
+                installed.publicSourceDir?.let { paths.add(it) }
+                installed.splitSourceDirs?.let { paths.addAll(it) }
+                installed.splitPublicSourceDirs?.let { paths.addAll(it) }
+            }''',
+        "installed game split-source paths",
+    )
+    source = replace_once(
+        source,
+        '''        return paths
+            .map { File(it) }''',
+        '''        return paths.distinct()
+            .map { File(it) }
+            .onEach { file ->
+                report("Minecraft APK source " + file.name +
+                    " exists=" + file.isFile +
+                    " readable=" + file.canRead())
+            }''',
+        "source diagnostics",
+    )
+    source = replace_once(
+        source,
+        '                if (it.exists()) {',
+        '                if (it.isFile && it.canRead()) {',
+        "readable APK check",
+    )
+    source = replace_once(
+        source,
+        '''        val apkFiles = collectApkFiles()
+        val manifestString = buildExtractionManifest(apkFiles)''',
+        '''        val apkFiles = collectApkFiles()
+        report("Minecraft extraction source APKs: " +
+            apkFiles.joinToString(", ") { it.name })
+        if (apkFiles.isEmpty()) {
+            throw IllegalStateException(
+                "Cannot read the installed Minecraft game APK or ARM64 splits. " +
+                "Install the complete licensed Minecraft package from Google Play " +
+                "and try again. Worlds have not been altered."
+            )
+        }
+        val manifestString = buildExtractionManifest(apkFiles)''',
+        "no readable game source reporting",
+    )
+    source = replace_once(
+        source,
+        '''                val abiPath = "lib/$abi"
+                extractableLibs.forEach { lib ->''',
+        '''                val abiPath = "lib/$abi"
+                var matchedLibraries = 0
+                extractableLibs.forEach { lib ->''',
+        "APK library count initialization",
+    )
+    source = replace_once(
+        source,
+        '''                    val output = File(outputDir, lib)
+                    zip.getInputStream(entry).use { input ->''',
+        '''                    matchedLibraries++
+                    val output = File(outputDir, lib)
+                    zip.getInputStream(entry).use { input ->''',
+        "APK found native entry counter",
+    )
+    source = replace_once(
+        source,
+        '''                    }
+                }
+            }
+        } catch (e: Exception) {''',
+        '''                    }
+                }
+                report("APK scan " + apkFile.name + " for " + abi +
+                    ": found " + matchedLibraries + " required native entries")
+            }
+        } catch (e: Exception) {
+            report("Failed to read or prepare native binaries from " +
+                apkFile.name + ": " + e.javaClass.simpleName + " " + e.message)''',
+        "visible native APK extraction failures",
+    )
+    source = replace_once(
+        source,
+        '''            report("Preflight: missing Minecraft game libraries: $names")
+            throw IllegalStateException(''',
+        '''            report("Preflight: missing Minecraft game libraries: $names")
+            val sources = collectApkFiles().joinToString(", ") { it.name }
+            report("Minecraft APK sources scanned: $sources")
+            throw IllegalStateException(''',
+        "missing game-source detail",
+    )
+    source = replace_once(
+        source,
+        '''"native library cache, then retry. Worlds are unaffected."''',
+        '''"native library cache, then retry. Worlds are unaffected. " +
+                "Available APK sources: $sources"''',
+        "surface source names on launch failure",
+    )
+
+
     path.write_text(source, encoding="utf-8")
     print("Applied launcher native dependency recovery and missing-game-library preflight")
 
