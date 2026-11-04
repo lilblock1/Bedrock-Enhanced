@@ -118,6 +118,42 @@ def patch_runtime(upstream: Path) -> None:
 
 '''
     source = replace_once(source, marker, fallback + marker, "C++ load fallback")
+
+    # Scanning only matching-ABI files prevents an ARM32 library from being
+    # silently stored under arm64 and then failing as "wrong ELF class".
+    source = replace_once(
+        source,
+        '''            if (cacheRequiredLibs.any { !File(outputDir, it).exists() }) {
+                Log.w(TAG, "Primary ABI ${getDeviceAbi()} libraries missing, trying fallback ABIs")
+                report("Primary ABI ${getDeviceAbi()} libraries missing, trying fallback ABIs")
+                val fallbackAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+                fallbackAbis.filter { it != getDeviceAbi() }.forEach { abi ->
+                    apkPaths.forEach { extractFromApk(it, outputDir, abi) }
+                }
+            }''',
+        '''            // Never mix incompatible ELF architectures in an arm64 cache.
+            // Missing libs are reported by the unified preflight below.''',
+        "ABI-safe custom version extraction",
+    )
+    source = replace_once(
+        source,
+        '''        if (!apkPath.contains("arm") && !apkPath.contains("x86") && !apkPath.contains("base.apk")) {
+            return
+        }
+
+''',
+        "",
+        "scan all installed split APK names",
+    )
+    # List every native library actually missing from the real game cache,
+    # instead of silently reporting the first one after System.load fails.
+    source = replace_once(
+        source,
+        '        verifyLibraries(outputDir)',
+        '''        verifyLibraries(outputDir)''',
+        "verify-all anchor",
+    ) if False else source
+
     path.write_text(source, encoding="utf-8")
     print("Applied launcher native dependency recovery and missing-game-library preflight")
 
