@@ -16,8 +16,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      # The GitHub-hosted Android runner already has command-line SDK tools.
-      # Avoid android-actions/setup-android@v3: its legacy "tools" install fails.
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: ''
       - name: Install required Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
