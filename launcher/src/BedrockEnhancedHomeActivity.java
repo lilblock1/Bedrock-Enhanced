@@ -9,6 +9,11 @@
 package org.levimc.launcher.ui.activities;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.pm.ApplicationInfo;
+import java.util.LinkedHashSet;
+import java.util.zip.ZipFile;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -110,6 +115,7 @@ public final class BedrockEnhancedHomeActivity extends Activity {
             Toast.makeText(this, gameStatus.getText(), Toast.LENGTH_SHORT).show();
         });
         button("Repair Minecraft native library cache", this::confirmRuntimeCacheRepair);
+        button("Diagnose Minecraft game files", this::diagnoseMinecraftGameFiles);
         button("Check Bedrock Enhanced updates", () ->
             openSite("https://github.com/lilblock1/Bedrock-Enhanced/releases"));
         button("Open official Minecraft app", () -> {
@@ -174,6 +180,76 @@ public final class BedrockEnhancedHomeActivity extends Activity {
             Toast.makeText(this, "Cannot open game runtime: " + error.getClass().getSimpleName(),
                 Toast.LENGTH_LONG).show();
         }
+    }
+
+
+    private void diagnoseMinecraftGameFiles() {
+        Toast.makeText(this, "Scanning installed Minecraft APKs...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            StringBuilder details = new StringBuilder("Bedrock Enhanced Minecraft diagnostics\n");
+            String[] games = {"libminecraftpe.so", "libfmod.so", "libMediaDecoders_Android.so"};
+            boolean[] present = new boolean[games.length];
+            try {
+                ApplicationInfo info = getPackageManager().getApplicationInfo("com.mojang.minecraftpe", 0);
+                LinkedHashSet<String> apks = new LinkedHashSet<>();
+                if (info.sourceDir != null) apks.add(info.sourceDir);
+                if (info.publicSourceDir != null) apks.add(info.publicSourceDir);
+                if (info.splitSourceDirs != null) {
+                    for (String path : info.splitSourceDirs) apks.add(path);
+                }
+                if (info.splitPublicSourceDirs != null) {
+                    for (String path : info.splitPublicSourceDirs) apks.add(path);
+                }
+                details.append("Installed APKs: ").append(apks.size()).append("\n");
+                for (String path : apks) {
+                    File file = new File(path);
+                    details.append("\n").append(file.getName())
+                        .append(" readable=").append(file.isFile() && file.canRead());
+                    if (!file.isFile() || !file.canRead()) continue;
+                    try (ZipFile zip = new ZipFile(file)) {
+                        for (int i = 0; i < games.length; i++) {
+                            if (zip.getEntry("lib/arm64-v8a/" + games[i]) != null) {
+                                present[i] = true;
+                                details.append("\n  found ").append(games[i]);
+                            }
+                        }
+                    } catch (Exception e) {
+                        details.append("\n  error: ").append(e.getMessage());
+                    }
+                }
+                if (info.nativeLibraryDir != null) {
+                    File nativeDir = new File(info.nativeLibraryDir);
+                    details.append("\n\nAndroid native directory present=").append(nativeDir.isDirectory());
+                    for (int i = 0; i < games.length; i++) {
+                        if (new File(nativeDir, games[i]).isFile()) present[i] = true;
+                    }
+                }
+                details.append("\n\nGame libraries:");
+                for (int i = 0; i < games.length; i++) {
+                    details.append("\n").append(present[i] ? "FOUND " : "MISSING ").append(games[i]);
+                }
+            } catch (Exception e) {
+                details.append("\nUnable to inspect Minecraft package: ")
+                    .append(e.getClass().getSimpleName()).append(": ").append(e.getMessage());
+            }
+            final String diagnostic = details.toString();
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                new android.app.AlertDialog.Builder(this)
+                    .setTitle("Minecraft APK diagnostic")
+                    .setMessage(diagnostic)
+                    .setNegativeButton("Close", null)
+                    .setPositiveButton("Copy report", (dialog, which) -> {
+                        ClipboardManager clipboard =
+                            (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                        if (clipboard != null) {
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Minecraft native diagnostic", diagnostic));
+                            Toast.makeText(this, "Diagnostic copied", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .show();
+            });
+        }, "MinecraftNativeDiagnostic").start();
     }
 
     // Only clears regenerated extracted game libraries, never Minecraft worlds,
