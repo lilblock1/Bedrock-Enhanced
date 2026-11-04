@@ -198,7 +198,7 @@ def patch_upstream(project_root: Path, upstream_root: Path) -> None:
     updater = updater.replace(
         manual_network_failure,
         manual_network_failure
-        + '\\n                activity.runOnUiThread(() -> '
+        + '\n                activity.runOnUiThread(() -> '
           'Toast.makeText(activity, "Unable to check for updates: " + e.getMessage(), '
           'Toast.LENGTH_LONG).show());',
         1,
